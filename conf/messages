@@ -1,0 +1,5 @@
+# https://www.playframework.com/documentation/latest/ScalaI18N
+
+# Flash Scope
+flash.success = success
+flash.error = error
