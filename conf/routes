@@ -4,10 +4,9 @@
 # ~~~~
 
 # An example controller showing a sample home page
-GET     /                           controllers.HomeController.listarPersonas
+GET     /listar                     controllers.HomeController.listar
 POST    /add                        controllers.HomeController.addPersona
 POST    /eliminar                   controllers.HomeController.eliminarPersona
-GET     /buscar/:nombre             controllers.HomeController.buscar(nombre)
 
 
 # Map static resources from the /public folder to the /assets URL path

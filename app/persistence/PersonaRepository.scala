@@ -1,42 +1,62 @@
 package persistence
 
+import java.sql._
+
 import javax.inject.{Inject, Singleton}
-import models.{DatabaseExecutionContext, Persona}
+import models.Persona
 import play.api.Logger
 import play.api.db.DBApi
-import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
-import slick.jdbc.JdbcProfile
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 @Singleton
 class PersonaRepository @Inject() (dbapi: DBApi) (implicit ec: DatabaseExecutionContext){
 
   private val db = dbapi.database("default")
 
-  private val personaquery = TableQuery[PersonaTable]
+  def getPersonas:Future[Option[Set[Persona]]] = Future {
+    val conn = db.getConnection()
+    var lista = Set[Persona]()
+    try {
+      val stmt = conn.createStatement
+      val rs = stmt.executeQuery("SELECT * FROM persona")
 
-  def all() : Future[Seq[Persona]] = db.run(personaquery.result)
-
-  def add(persona: Persona): Future[Unit] = db.run(personaquery += persona).map(_ => ())
-
-  def delete(persona: Persona) : Future[Int] = {
-    val q = personaquery.filter(_.name === persona.nombre)
-    val action = q.delete
-    db.run(action)
+      while (rs.next()) {
+        val persona = Persona(rs.getString("name"), rs.getString("apellido"),rs.getInt("edad"))
+        lista += persona
+      }
+      Some(lista)
+    } finally {
+      conn.close()
+    }
   }
 
-  def buscarPorNombre(nombre:String) : Future[Seq[Persona]] = {
-    val q = personaquery.filter(_.name === nombre)
-    val action = q.result
-    db.run(action)
+  def setPersona(persona: Persona) : Future[Unit] = Future{
+    val conn = db.getConnection()
+    val insertSql = """
+                      |insert into persona (name,apellido,edad)
+                      |values (?,?,?)
+                    """.stripMargin
+    try {
+      val preparedStmt: PreparedStatement = conn.prepareStatement(insertSql)
+      preparedStmt.setString (1, persona.nombre)
+      preparedStmt.setString (2, persona.apellido)
+      preparedStmt.setInt    (3, persona.edad)
+      preparedStmt.execute
+    } finally {
+      conn.close()
+    }
   }
 
-  private class PersonaTable(tag: Tag) extends Table[Persona] (tag, "PERSONA"){
-    def name = column[String]("name", O.PrimaryKey)
-    def apellido = column[String]("apellido")
-    def edad = column[Int]("edad")
-
-    def * = (name, apellido, edad) <> ( (Persona.apply _).tupled, Persona.unapply)
+  def deletePersona(persona: Persona) : Future[Int] = Future{
+    val conn = db.getConnection()
+    val Sql = """DELETE FROM  persona WHERE name = (?)"""
+    try {
+      val preparedStmt: PreparedStatement = conn.prepareStatement(Sql)
+      preparedStmt.setString (1, persona.nombre)
+      preparedStmt.executeUpdate()
+    } finally {
+      conn.close()
+    }
   }
 }
